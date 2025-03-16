@@ -4,23 +4,26 @@ import { useState, useEffect, useRef } from "react";
 import Button from "@radui/ui/Button";
 import FriendVideo from "../components/FriendVideo";
 import UserVideo from "../components/UserVideo";
-import { createSenderConnection, createReceiverConnection } from "../connectors/rtcConnectors";
+import {
+  createSenderConnection,
+  createReceiverConnection,
+} from "../connectors/rtcConnectors";
 
 const FriendCodeArea = ({ connected, disconnectHandler, connectHandler }) => {
   const [friendCode, setfriendCode] = useState(null);
   if (connected) {
     return (
       <div className="flex gap-2">
-        <div>Your friend's code: {friendCode}</div>
+        <div>Your friend&apos;s code: {friendCode}</div>
         <Button onClick={disconnectHandler}>Disconnect</Button>
       </div>
     );
   }
   return (
     <div>
-      Enter your friend's code:
+      Enter your friend&apos;s code:
       <input type="text" onChange={(e) => setfriendCode(e.target.value)} />
-      <Button onClick={() => connectHandler({friendCode})}>Connect</Button>
+      <Button onClick={() => connectHandler({ friendCode })}>Connect</Button>
     </div>
   );
 };
@@ -33,11 +36,10 @@ export default function Home() {
   const localVideoRef = useRef(null);
   const friendVideoRef = useRef(null);
 
-  const getRandomCode = () => {
-    return Math.random().toString(36).substring(2, 15);
-  };
-
   useEffect(() => {
+    const getRandomCode = () => {
+      return Math.random().toString(36).substring(2, 15);
+    };
     setUserCode(getRandomCode());
 
     const getUserMedia = async () => {
@@ -55,17 +57,24 @@ export default function Home() {
       }
     };
     getUserMedia();
+  }, []);
 
+  useEffect(() => {
     return () => {
       if (localStream) {
         localStream.getTracks().forEach((track) => track.stop());
       }
-      // todo: close friend stream
+    };
+  }, [localStream]);
+
+  // Separate effect for friend stream cleanup
+  useEffect(() => {
+    return () => {
       if (friendStream) {
         friendStream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, []);
+  }, [friendStream]);
 
   const disconnectHandler = () => {
     setUserCode(null);
@@ -78,15 +87,23 @@ export default function Home() {
   };
 
   const connectHandler = async ({ friendCode }) => {
-    console.log({localStream, friendCode})
+    console.log({ localStream, friendCode });
     try {
-      const senderPC = await createSenderConnection({userCode, localStream, friendCode});
-      const receiverPC = await createReceiverConnection({userCode, friendCode, setFriendStream, friendVideoRef});
+      const senderPC = await createSenderConnection({
+        userCode,
+        localStream,
+        friendCode,
+      });
+      const receiverPC = await createReceiverConnection({
+        userCode,
+        friendCode,
+        setFriendStream,
+        friendVideoRef,
+      });
       setConnected(true);
     } catch (error) {
       console.error(error);
     }
-
   };
 
   return (

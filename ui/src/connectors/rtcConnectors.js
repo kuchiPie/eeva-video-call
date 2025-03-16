@@ -1,4 +1,4 @@
-const serverUrl = "http://192.168.29.66:8080";
+const serverUrl = "https://eeva-video-call.onrender.com/";
 
 const createSenderConnection = async ({
   userCode,
