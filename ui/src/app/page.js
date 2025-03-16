@@ -9,8 +9,21 @@ import {
   createReceiverConnection,
 } from "../connectors/rtcConnectors";
 
-const FriendCodeArea = ({ connected, disconnectHandler, connectHandler }) => {
+const FriendCodeArea = ({
+  connected,
+  disconnectHandler,
+  connectHandler,
+  loading,
+}) => {
   const [friendCode, setfriendCode] = useState(null);
+  if (loading) {
+    return (
+      <div>
+        Please wait while we connect... Since I am hosting on render, it might
+        take around a minute to connect. I appreciate your patience.
+      </div>
+    );
+  }
   if (connected) {
     return (
       <div className="flex gap-2">
@@ -35,6 +48,7 @@ export default function Home() {
   const [friendStream, setFriendStream] = useState(null);
   const localVideoRef = useRef(null);
   const friendVideoRef = useRef(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const getRandomCode = () => {
@@ -87,7 +101,7 @@ export default function Home() {
   };
 
   const connectHandler = async ({ friendCode }) => {
-    console.log({ localStream, friendCode });
+    setLoading(true);
     try {
       const senderPC = await createSenderConnection({
         userCode,
@@ -104,6 +118,7 @@ export default function Home() {
     } catch (error) {
       console.error(error);
     }
+    setLoading(false);
   };
 
   return (
@@ -129,6 +144,7 @@ export default function Home() {
             connected={connected}
             disconnectHandler={disconnectHandler}
             connectHandler={connectHandler}
+            loading={loading}
           />
         </div>
       </div>
