@@ -114,7 +114,7 @@ func main() {
 
 	})
 
-	router.Run(":8080")
+	router.Run("0.0.0.0:8080")
 }
 
 func receiveTrack(peerConnection *webrtc.PeerConnection, peerConnectionMap map[string]chan *webrtc.Track, peerId string) {
