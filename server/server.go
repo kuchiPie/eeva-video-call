@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v2"
 )
@@ -23,6 +24,8 @@ type Sdp struct {
 }
 
 func main() {
+	godotenv.Load()
+
 	file, err := os.OpenFile("info.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatal(err)
@@ -33,12 +36,18 @@ func main() {
 
 	router := gin.Default()
 
+	allowedOrigins := []string{"http://localhost:3000"}
+	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
+		allowedOrigins = append(allowedOrigins, origins)
+	}
+
 	router.Use(cors.New(cors.Config{
-		AllowAllOrigins:  true,
-		AllowCredentials: true,
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
 	}))
 
 	peerConnectionMap := make(map[string]chan *webrtc.Track)
@@ -49,20 +58,29 @@ func main() {
 
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(m))
 
+	turnServerURLs := []string{
+		"turn:a.relay.metered.ca:80",
+		"turn:a.relay.metered.ca:80?transport=tcp",
+		"turn:a.relay.metered.ca:443",
+		"turn:a.relay.metered.ca:443?transport=tcp",
+	}
+
+	if customURLs := os.Getenv("TURN_SERVER_URLS"); customURLs != "" {
+		turnServerURLs = []string{customURLs}
+	}
+
+	turnUsername := os.Getenv("TURN_USERNAME")
+	turnCredential := os.Getenv("TURN_CREDENTIAL")
+
 	peerConnectionConfig := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
-				URLs: []string{"stun:stun.relay.metered.ca:80"},
+				URLs: []string{"stun:stun.l.google.com:19302"},
 			},
 			{
-				URLs: []string{
-					"turn:global.relay.metered.ca:80",
-					"turn:global.relay.metered.ca:80?transport=tcp",
-					"turn:global.relay.metered.ca:443",
-					"turn:global.relay.metered.ca:443?transport=tcp",
-				},
-				Username:   "1022eaaea0c246d013453fcd",
-				Credential: "wG83FWzOvtJ88iMx",
+				URLs:       turnServerURLs,
+				Username:   turnUsername,
+				Credential: turnCredential,
 			},
 		},
 	}
@@ -129,7 +147,12 @@ func main() {
 
 	})
 
-	router.Run("0.0.0.0:8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	router.Run("0.0.0.0:" + port)
 }
 
 func receiveTrack(peerConnection *webrtc.PeerConnection, peerConnectionMap map[string]chan *webrtc.Track, peerId string) {
@@ -177,7 +200,7 @@ func createTrack(peerConnection *webrtc.PeerConnection, peerConnectionMap map[st
 		}
 
 		rtpBuf := make([]byte, 1400)
-		fmt.Println("Reading from remote track for peerId", currentUserId)	
+		fmt.Println("Reading from remote track for peerId", currentUserId)
 		for {
 			i, readErr := remoteTrack.Read(rtpBuf)
 			if readErr != nil {
