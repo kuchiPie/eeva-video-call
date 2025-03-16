@@ -1,39 +1,32 @@
-const serverUrl = "https://eeva-video-call.onrender.com";
+// Get API URL from environment variable
+const serverUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+// Function to create WebRTC configuration with ICE servers
+const getWebRTCConfig = () => {
+  return {
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      {
+        urls: [
+          process.env.NEXT_PUBLIC_TURN_SERVER_URL_1 || "turn:a.relay.metered.ca:80",
+          process.env.NEXT_PUBLIC_TURN_SERVER_URL_2 || "turn:a.relay.metered.ca:80?transport=tcp",
+          process.env.NEXT_PUBLIC_TURN_SERVER_URL_3 || "turn:a.relay.metered.ca:443",
+          process.env.NEXT_PUBLIC_TURN_SERVER_URL_4 || "turn:a.relay.metered.ca:443?transport=tcp",
+        ],
+        username: process.env.NEXT_PUBLIC_TURN_USERNAME || "your_metered_username",
+        credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "your_metered_credential",
+      },
+    ],
+    iceCandidatePoolSize: 10,
+  };
+};
 
 const createSenderConnection = async ({
   userCode,
   localStream,
   friendCode,
 }) => {
-  const peerConnection = new RTCPeerConnection({
-    iceServers: [
-      {
-        urls: "stun:stun.relay.metered.ca:80",
-      },
-      {
-        urls: "turn:global.relay.metered.ca:80",
-        username: "1022eaaea0c246d013453fcd",
-        credential: "wG83FWzOvtJ88iMx",
-      },
-      {
-        urls: "turn:global.relay.metered.ca:80?transport=tcp",
-        username: "1022eaaea0c246d013453fcd",
-        credential: "wG83FWzOvtJ88iMx",
-      },
-      {
-        urls: "turn:global.relay.metered.ca:443",
-        username: "1022eaaea0c246d013453fcd",
-        credential: "wG83FWzOvtJ88iMx",
-      },
-      {
-        urls: "turns:global.relay.metered.ca:443?transport=tcp",
-        username: "1022eaaea0c246d013453fcd",
-        credential: "wG83FWzOvtJ88iMx",
-      },
-    ],
-    iceTransportPolicy: "all", // Try both UDP and TCP
-    iceCandidatePoolSize: 10, // Increase candidates
-  });
+  const peerConnection = new RTCPeerConnection(getWebRTCConfig());
 
   localStream.getTracks().forEach((track) => {
     peerConnection.addTrack(track, localStream);
@@ -73,22 +66,7 @@ const createReceiverConnection = async ({
   setFriendStream,
   friendVideoRef,
 }) => {
-  const peerConnection = new RTCPeerConnection({
-    iceServers: [
-      { urls: "stun:stun.l.google.com:19302" },
-      {
-        urls: [
-          "turn:global.turn.twilio.com:3478?transport=udp",
-          "turn:global.turn.twilio.com:3478?transport=tcp",
-          "turn:global.turn.twilio.com:443?transport=tcp",
-        ],
-        username: "your_twilio_account_sid:your_twilio_username",
-        credential: "your_twilio_token",
-      },
-    ],
-    iceTransportPolicy: "all", // Try both UDP and TCP
-    iceCandidatePoolSize: 10, // Increase candidates
-  });
+  const peerConnection = new RTCPeerConnection(getWebRTCConfig());
 
   peerConnection.ontrack = (e) => {
     if (friendVideoRef.current && e.streams[0]) {
