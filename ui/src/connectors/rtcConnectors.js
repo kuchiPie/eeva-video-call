@@ -6,7 +6,32 @@ const createSenderConnection = async ({
   friendCode,
 }) => {
   const peerConnection = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    iceServers: [
+      {
+        urls: "stun:stun.relay.metered.ca:80",
+      },
+      {
+        urls: "turn:global.relay.metered.ca:80",
+        username: "1022eaaea0c246d013453fcd",
+        credential: "wG83FWzOvtJ88iMx",
+      },
+      {
+        urls: "turn:global.relay.metered.ca:80?transport=tcp",
+        username: "1022eaaea0c246d013453fcd",
+        credential: "wG83FWzOvtJ88iMx",
+      },
+      {
+        urls: "turn:global.relay.metered.ca:443",
+        username: "1022eaaea0c246d013453fcd",
+        credential: "wG83FWzOvtJ88iMx",
+      },
+      {
+        urls: "turns:global.relay.metered.ca:443?transport=tcp",
+        username: "1022eaaea0c246d013453fcd",
+        credential: "wG83FWzOvtJ88iMx",
+      },
+  ],
+    iceCandidatePoolSize: 10
   });
 
   localStream.getTracks().forEach((track) => {
@@ -42,9 +67,21 @@ const createSenderConnection = async ({
 };
 
 const createReceiverConnection = async ({userCode, friendCode, setFriendStream, friendVideoRef}) => {
-    const peerConnection = new RTCPeerConnection({
-        iceServers: [{urls: "stun:stun.l.google.com:19302"}]
-    });
+  const peerConnection = new RTCPeerConnection({
+    iceServers: [
+      {urls: "stun:stun.l.google.com:19302"},
+      {
+        urls: [
+          "turn:global.turn.twilio.com:3478?transport=udp",
+          "turn:global.turn.twilio.com:3478?transport=tcp",
+          "turn:global.turn.twilio.com:443?transport=tcp"
+        ],
+        username: "your_twilio_account_sid:your_twilio_username",
+        credential: "your_twilio_token"
+      }
+    ],
+    iceCandidatePoolSize: 10
+  });
     
     peerConnection.ontrack = (e) => {
         if (friendVideoRef.current && e.streams[0]) {

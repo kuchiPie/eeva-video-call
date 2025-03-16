@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/pion/rtcp"
-	"github.com/pion/webrtc/v2"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
 	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/pion/rtcp"
+	"github.com/pion/webrtc/v2"
 )
 
 const (
@@ -33,11 +34,11 @@ func main() {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
-		AllowAllOrigins: true,
+		AllowAllOrigins:  true,
 		AllowCredentials: true,
-		AllowHeaders: []string{"Content-Type", "Authorization"},
-		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		ExposeHeaders: []string{"Content-Length"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		ExposeHeaders:    []string{"Content-Length"},
 	}))
 
 	peerConnectionMap := make(map[string]chan *webrtc.Track)
@@ -51,7 +52,17 @@ func main() {
 	peerConnectionConfig := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
-				URLs: []string{"stun:stun.l.google.com:19302"},
+				URLs: []string{"stun:stun.relay.metered.ca:80"},
+			},
+			{
+				URLs: []string{
+					"turn:global.relay.metered.ca:80",
+					"turn:global.relay.metered.ca:80?transport=tcp",
+					"turn:global.relay.metered.ca:443",
+					"turn:global.relay.metered.ca:443?transport=tcp",
+				},
+				Username:   "1022eaaea0c246d013453fcd",
+				Credential: "wG83FWzOvtJ88iMx",
 			},
 		},
 	}
@@ -130,7 +141,7 @@ func createTrack(peerConnection *webrtc.PeerConnection, peerConnectionMap map[st
 		log.Fatal(err)
 	}
 
-	peerConnection.OnTrack(func(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver){
+	peerConnection.OnTrack(func(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
 
 		go func() {
 			ticker := time.NewTicker(rtcpPLIInterval)
