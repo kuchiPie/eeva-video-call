@@ -82,6 +82,7 @@ func main() {
 
 		if err != nil {
 			log.Printf("Error binding JSON: %v", err)
+			fmt.Println("Error binding JSON: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 			return
 		}
@@ -93,6 +94,7 @@ func main() {
 
 		if err != nil {
 			log.Fatal("Error creating peer connection: %v", err)
+			fmt.Println("Error creating peer connection: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create peer connection"})
 			return
 		}
@@ -109,6 +111,7 @@ func main() {
 
 		if err != nil {
 			log.Fatal("Error creating answer: %v", err)
+			fmt.Println("Error creating answer: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create answer"})
 			return
 		}
@@ -117,6 +120,7 @@ func main() {
 
 		if err != nil {
 			log.Fatal("Error setting local description: %v", err)
+			fmt.Println("Error setting local description: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set local description"})
 			return
 		}
@@ -130,8 +134,10 @@ func main() {
 
 func receiveTrack(peerConnection *webrtc.PeerConnection, peerConnectionMap map[string]chan *webrtc.Track, peerId string) {
 	if _, ok := peerConnectionMap[peerId]; !ok {
+		fmt.Println("Creating new channel for peerId", peerId)
 		peerConnectionMap[peerId] = make(chan *webrtc.Track, 1)
 	}
+	fmt.Println("Receiving track for peerId", peerId)
 	localTrack := <-peerConnectionMap[peerId]
 	peerConnection.AddTrack(localTrack)
 }
@@ -139,10 +145,12 @@ func receiveTrack(peerConnection *webrtc.PeerConnection, peerConnectionMap map[s
 func createTrack(peerConnection *webrtc.PeerConnection, peerConnectionMap map[string]chan *webrtc.Track, currentUserId string) {
 	if _, err := peerConnection.AddTransceiver(webrtc.RTPCodecTypeVideo); err != nil {
 		log.Fatal(err)
+		fmt.Println("Error adding transceiver: %v", err)
 	}
 
+	fmt.Println("Creating track for peerId", currentUserId)
 	peerConnection.OnTrack(func(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
-
+		fmt.Println("OnTrack for peerId", currentUserId)
 		go func() {
 			ticker := time.NewTicker(rtcpPLIInterval)
 			for range ticker.C {
@@ -169,7 +177,7 @@ func createTrack(peerConnection *webrtc.PeerConnection, peerConnectionMap map[st
 		}
 
 		rtpBuf := make([]byte, 1400)
-
+		fmt.Println("Reading from remote track for peerId", currentUserId)	
 		for {
 			i, readErr := remoteTrack.Read(rtpBuf)
 			if readErr != nil {

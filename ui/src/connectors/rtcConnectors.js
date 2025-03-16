@@ -30,8 +30,9 @@ const createSenderConnection = async ({
         username: "1022eaaea0c246d013453fcd",
         credential: "wG83FWzOvtJ88iMx",
       },
-  ],
-    iceCandidatePoolSize: 10
+    ],
+    iceTransportPolicy: "all", // Try both UDP and TCP
+    iceCandidatePoolSize: 10, // Increase candidates
   });
 
   localStream.getTracks().forEach((track) => {
@@ -66,55 +67,93 @@ const createSenderConnection = async ({
   return peerConnection;
 };
 
-const createReceiverConnection = async ({userCode, friendCode, setFriendStream, friendVideoRef}) => {
+const createReceiverConnection = async ({
+  userCode,
+  friendCode,
+  setFriendStream,
+  friendVideoRef,
+}) => {
   const peerConnection = new RTCPeerConnection({
     iceServers: [
-      {urls: "stun:stun.l.google.com:19302"},
+      { urls: "stun:stun.l.google.com:19302" },
       {
         urls: [
           "turn:global.turn.twilio.com:3478?transport=udp",
           "turn:global.turn.twilio.com:3478?transport=tcp",
-          "turn:global.turn.twilio.com:443?transport=tcp"
+          "turn:global.turn.twilio.com:443?transport=tcp",
         ],
         username: "your_twilio_account_sid:your_twilio_username",
-        credential: "your_twilio_token"
-      }
+        credential: "your_twilio_token",
+      },
     ],
-    iceCandidatePoolSize: 10
+    iceTransportPolicy: "all", // Try both UDP and TCP
+    iceCandidatePoolSize: 10, // Increase candidates
   });
-    
-    peerConnection.ontrack = (e) => {
-        if (friendVideoRef.current && e.streams[0]) {
-            friendVideoRef.current.srcObject = e.streams[0];
-        }
-        friendVideoRef.current = e.streams[0];
 
-        setFriendStream(e.streams[0]);
+  peerConnection.ontrack = (e) => {
+    if (friendVideoRef.current && e.streams[0]) {
+      friendVideoRef.current.srcObject = e.streams[0];
     }
+    friendVideoRef.current = e.streams[0];
 
-    const offer = await peerConnection.createOffer({offerToReceiveAudio: true, offerToReceiveVideo: true});
-    await peerConnection.setLocalDescription(offer);
+    setFriendStream(e.streams[0]);
+  };
 
-    const response = await fetch(`${serverUrl}/webrtc/sdp/c/${userCode}/p/${friendCode}/s/false`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            Sdp: btoa(JSON.stringify(peerConnection.localDescription)),
-        }),
-    });
+  peerConnection.oniceconnectionstatechange = () => {
+    console.log(`ICE state: ${peerConnection.iceConnectionState}`);
+    // If it stays in "checking" or goes to "failed", you have ICE problems
+  };
 
-    if (!response.ok) {
-        throw new Error("Failed to create receiver connection");
+  peerConnection.onicegatheringstatechange = () => {
+    console.log(`ICE gathering state: ${peerConnection.iceGatheringState}`);
+  };
+
+  peerConnection.onicecandidate = (event) => {
+    console.log("ICE candidate:", event.candidate);
+  };
+
+  const offer = await peerConnection.createOffer({
+    offerToReceiveAudio: true,
+    offerToReceiveVideo: true,
+  });
+  await peerConnection.setLocalDescription(offer);
+
+  peerConnection.oniceconnectionstatechange = () => {
+    console.log(`ICE state: ${peerConnection.iceConnectionState}`);
+    // If it stays in "checking" or goes to "failed", you have ICE problems
+  };
+
+  peerConnection.onicegatheringstatechange = () => {
+    console.log(`ICE gathering state: ${peerConnection.iceGatheringState}`);
+  };
+
+  peerConnection.onicecandidate = (event) => {
+    console.log("ICE candidate:", event.candidate);
+  };
+
+  const response = await fetch(
+    `${serverUrl}/webrtc/sdp/c/${userCode}/p/${friendCode}/s/false`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        Sdp: btoa(JSON.stringify(peerConnection.localDescription)),
+      }),
     }
+  );
 
-    const {Sdp} = await response.json();
-    const answer = JSON.parse(atob(Sdp));
+  if (!response.ok) {
+    throw new Error("Failed to create receiver connection");
+  }
 
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+  const { Sdp } = await response.json();
+  const answer = JSON.parse(atob(Sdp));
 
-    return peerConnection;
-}
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
 
-export {createSenderConnection, createReceiverConnection};
+  return peerConnection;
+};
+
+export { createSenderConnection, createReceiverConnection };
